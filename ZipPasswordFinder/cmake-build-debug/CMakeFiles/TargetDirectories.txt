@@ -1,0 +1,3 @@
+/home/claudio/Projects/ZipPasswordFinder/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/claudio/Projects/ZipPasswordFinder/cmake-build-debug/CMakeFiles/ZipPasswordFinder.dir
+/home/claudio/Projects/ZipPasswordFinder/cmake-build-debug/CMakeFiles/edit_cache.dir

@@ -1,0 +1,24 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/claudio/Projects/ZipPasswordFinder/main.cpp
+stdint.h
+-
+inttypes.h
+-
+iostream
+-
+unistd.h
+-
+cstring
+-
+iomanip
+-
+zip.h
+-
+
