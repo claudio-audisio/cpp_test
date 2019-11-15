@@ -7,221 +7,136 @@
 #include <string.h>
 #include <ISTools/Topic.h>
 #include "CETISRecConsole.h"
+#include "CommandParser.h"
 
-#define EC_VER			"0.0.1"
+#define EC_VER			"0.1.0"
 
-#define REC_CFG_FILE	"ETISSTDRec.cfg"
+#define REC_CFG_FILE_ORIG	"ETISSTDRec.cfg"
+#define REC_CFG_FILE		"ETISSTDRec_current.cfg"
 
 //#define DEFAULT_USER	"ETISConsole"
 //#define DEFAULT_PASSWD	"ETISConsole"
-
 #define DEFAULT_USER	"WndEtis"
 #define DEFAULT_PASSWD	"mcwnd08"
 
-#define EXIT_CMD		"exit"
-#define HELP_CMD		"help"
-#define STATUS_CMD		"status"
-#define REC_CMD			"rec"
-#define SNAP_CMD		"snap"
-#define CLEAR_CMD		"clear"
-#define STOP_CMD		"stop"
-#define ALL_CMD			"all"
-
 using namespace std;
 
-CETISRecConsole* pRec = 0;
+CETISRecConsole* m_pRec = 0;
 string	m_sHost,
 		m_sPort;
+FILE*	m_pRecConfFile;
 
-void StopRec()
+void RemoveFile(const string& sFileName)
 {
-	if (pRec)
+	FILE* pTemp = fopen(sFileName.c_str(), "r");
+
+	if (pTemp != NULL)
 	{
-		pRec->Disconnect();
-		delete pRec;
-		pRec = 0;
-		cout << m_sHost << " disconnected" << endl;
+		fclose(pTemp);
+		const string sCommand = string("del /q ") + sFileName;
+		system(sCommand.c_str());
 	}
 }
 
-bool StartNewRec(const string& sHost, const string& sPort, string& sError, const string& sUser = string(), const string& sPassword = string())
+void SetNewConnectionValues(const string& sHost, const string& sPort)
 {
-	StopRec();
+	RemoveFile(REC_CFG_FILE);
 
-	pRec = new CETISRecConsole();
+	const string sNewConnection = string("Connection = ") + sHost + string(":") + sPort + string("\n\0");
 
-	if (!pRec->SetConfigFile(REC_CFG_FILE, sError))
+	fseek(m_pRecConfFile, 0, SEEK_SET);
+
+	FILE* pCurrentCfgFile = fopen(REC_CFG_FILE, "w");
+
+	char sLine[MAX_LINE_SIZE];
+	
+	while (fgets(sLine, MAX_LINE_SIZE, m_pRecConfFile) != NULL)
+	{
+		if (string(sLine).find("host:port") != string::npos)
+			memcpy(sLine, sNewConnection.c_str(), sNewConnection.length() + 1);
+
+		fputs(sLine, pCurrentCfgFile);
+	}
+
+	fflush(pCurrentCfgFile);
+	fclose(pCurrentCfgFile);
+}
+
+bool StartNewRec(const string& sHost, const string& sPort, string& sError, const string& sUser, const string& sPassword)
+{
+	SetNewConnectionValues(sHost, sPort);
+
+	m_pRec = new CETISRecConsole();
+
+	if (!m_pRec->SetConfigFile(REC_CFG_FILE, sError))
 	{
 		sError = "Configuration file not set: " + sError;
-		delete pRec;
-		pRec = 0;
+		delete m_pRec;
+		m_pRec = 0;
 		return false;
 	}
 
-	if (!pRec->Initialize(sError))
+	if (!m_pRec->Initialize(sError))
 	{
 		sError = "Error initializing recevier: " + sError;
-		delete pRec;
-		pRec = 0;
+		delete m_pRec;
+		m_pRec = 0;
 		return false;
 	}
 
-	if (!pRec->Connect(sUser.empty() ? DEFAULT_USER : sUser, sPassword.empty() ? DEFAULT_PASSWD : sPassword, sError, false))
+	if (!m_pRec->Connect(sUser.empty() ? DEFAULT_USER : sUser, sPassword.empty() ? DEFAULT_PASSWD : sPassword, sError, false))
 	{
 		sError = "Connection failed: " + sError;
-		delete pRec;
-		pRec = 0;
+		delete m_pRec;
+		m_pRec = 0;
 		return false;
 	}
 
 	return true;
 }
 
-void PrintTopic(const its::Topic& Tpc = its::Topic())
+
+bool Init()
 {
-	if (pRec)
-		pRec->DumpCache(Tpc);
-	else
-		cout << "not connected" << endl;
-}
+	cout << "ETISConsole ver. " << EC_VER << endl;
 
-void Status()
-{
-	if (pRec)
-		cout << "connected to " << m_sHost << ":" << m_sPort <<	" with " << pRec->CacheSize() << " topic" << endl;
-	else
-		cout << "not connected" << endl;
-}
+	string sError;
 
-void Clear()
-{
-	if (pRec && pRec->Clear())
-		cout << "cache cleared" << endl;
-	else
-		cout << "not connected" << endl;
-}
-
-void Help()
-{
-	// TODO fare i subset di tag
-	cout << "\trec host port [user] [password]\tconnect to ETIS publisher on given host:port" << endl;
-	cout << "\tsnap topic [ref|trade|book]\t\tsubscribe snapshot using urrent connection for given topic with given tag list" << endl;
-	cout << "\tstatus\t\t\t\tprint current connection (if any)" << endl;
-	cout << "\tall\t\t\t\tprint all topic in cache" << endl;
-	cout << "\tclear\t\t\t\tclear cache" << endl;
-	cout << "\tstop\t\t\t\tclose current connection (if any)" << endl;
-	cout << "\thelp\t\t\t\tprint this help" << endl;
-	cout << "\texit\t\t\t\tquit ETISConsole" << endl;
-}
-
-bool ParseCommand()
-{
-	string sCommand;
-
-	cout << "> ";
-	getline(cin, sCommand);
-
-	transform(sCommand.begin(), sCommand.end(), sCommand.begin(), ::tolower);
-
-	vector<string>	vRec,
-					vSnap;
-
-	const char* delim = " ";
-	char* next_token;
-	char* token = strtok_s((char*)sCommand.c_str(), " ", &next_token);
-
-	while (token)
+	if (!system(NULL))
 	{
-		string sToken(token);
-
-		if (vRec.empty() && vSnap.empty())
-		{
-			if (sToken.compare(EXIT_CMD) == 0)
-				return false;
-
-			if (sToken.compare(HELP_CMD) == 0)
-				Help();
-			else if (sToken.compare(STATUS_CMD) == 0)
-				Status();
-			else if (sToken.compare(STOP_CMD) == 0)
-				StopRec();
-			else if (sToken.compare(ALL_CMD) == 0)
-				PrintTopic();
-			else if (sToken.compare(CLEAR_CMD) == 0)
-				Clear();
-			else if (sToken.compare(REC_CMD) == 0)
-				vRec.push_back(sToken);
-			else if (sToken.compare(SNAP_CMD) == 0)
-				vSnap.push_back(sToken);
-			else
-			{
-				transform(sToken.begin(), sToken.end(), sToken.begin(), ::toupper);
-				if (pRec && pRec->IsTopicPresent(sToken))
-					PrintTopic(sToken);
-				else
-					cout << "command unknown" << endl;
-				break;
-			}
-		}
-		else if (!vRec.empty())
-			vRec.push_back(sToken);
-		else if (!vSnap.empty())
-		{
-			transform(sToken.begin(), sToken.end(), sToken.begin(), ::toupper);
-			vSnap.push_back(sToken);
-		}
-		
-		token = strtok_s(NULL, " ", &next_token);
+		cout << "command processor not available" << endl;
+		return false;
 	}
 
-	if (!vRec.empty())
-	{
-		string sError;
-		m_sHost = vRec.at(1);
-		m_sPort = vRec.at(2);
+	m_pRecConfFile = fopen(REC_CFG_FILE_ORIG, "r");
 
-		bool bRecRes = vRec.size() < 4 ? StartNewRec(m_sHost, m_sPort, sError) : StartNewRec(m_sHost, m_sPort, sError, vRec.at(3), vRec.at(4));
-		
-		if (bRecRes)
-			cout << "connected" << endl;
-		else
-			cout << sError << endl;
-	}
-
-	if (!vSnap.empty())
+	if (m_pRecConfFile == NULL)
 	{
-		string sError;
-		const string& sTopic = vSnap.at(1);
-		
-		if (pRec)
-		{
-			if (!pRec->Subscribe(its::Topic(sTopic), REQ_SNAPSHOT, TagSet(), false, sError))
-				cout << sError << endl;
-			else
-				cout << "subscribed" << endl;
-		}
-		else
-			cout << "not connected" << endl;
+		cout << "missing receiver configuration file" << endl;
+		return false;
 	}
 
 	return true;
 }
 
-void Init()
+void Shutdown()
 {
-	cout << "ETISConsole ver. " << EC_VER << endl;
+	CloseRec();
+	
+	fclose(m_pRecConfFile);
+
+	RemoveFile(REC_CFG_FILE);
 }
 	
 int main()
 {
-	Init();
+	if (!Init())
+		return 0;
 
 	bool bExit = false;
 
 	while (!bExit)
 		bExit = !ParseCommand();
 
-	StopRec();
+	Shutdown();
 }
-
-
