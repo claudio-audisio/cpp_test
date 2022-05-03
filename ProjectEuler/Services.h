@@ -8,6 +8,7 @@
 #include "001 - MultipleOf3And5.h"
 #include "002 - EvenFibonacciNumbers.h"
 #include "003 - LargestPrimeFactor.h"
+#include "004 - LargestPalindromeProduct.h"
 #include "005 - SmallestMultiple.h"
 #include "006 - SumSuqareDifference.h"
 #include "008 - LargestProductInASeries.h"
@@ -22,10 +23,12 @@ using namespace std;
 
 int menu()
 {
-	cout << "0.\tPrint primes" << endl;
+	cout << "*** Project Euler! ***" << endl;
+	cout << "\n0.\tPrint primes" << endl;
 	cout << "1.\tMultiples of 3 and 5" << endl;
 	cout << "2.\tEven Fibonacci numbers" << endl;
 	cout << "3.\tLargest prime factor" << endl;
+	cout << "4.\tLargest palindrome product" << endl;
 	cout << "5.\tSmallest multiple" << endl;
 	cout << "6.\tSum square difference" << endl;
 	cout << "7.\t10001st prime" << endl;
@@ -36,7 +39,9 @@ int menu()
 	cout << "14.\tLongest Collatz sequence" << endl;
 	cout << "69.\tTotient maximum" << endl;
 
-	cout << "999.\tTest" << endl;
+	cout << "\n999.\tTest" << endl;
+	
+	cout << "-1.\tExit" << endl;
 	
 	cout << "\nSelect a problem to solve: ";
 
@@ -56,6 +61,7 @@ void solveProblem(int problem)
 		case 1:		multipleOf3And5(); break;
 		case 2:		evenFibonacciNumbers(4*1000*1000); break;
 		case 3:		largestPrimeFactor(600851475143); break;
+		case 4:		largestPalindromeProduct(); break;
 		case 5:		smallestMultiple(20); break;
 		case 6:		sumSquareDifference(100); break;
 		case 7:		nThPrimes(10001); break;

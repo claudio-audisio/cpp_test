@@ -7,11 +7,13 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
-	cout << "Project Euler!" << endl;
+	int selection = 0;
 
-	int selection = menu();
-
-	solveProblem(selection);
+	while (selection != -1) {
+		selection = menu();
+		solveProblem(selection);
+		cout << "\n" << endl;
+	}
 
 	return 0;
 }
